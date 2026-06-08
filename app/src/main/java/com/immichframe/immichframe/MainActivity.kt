@@ -98,6 +98,7 @@ class MainActivity : AppCompatActivity() {
     }
     private var isShowingFirst = true
     private var zoomAnimator: ObjectAnimator? = null
+    private var showImageJob: Job? = null
 
     private val settingsLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -177,46 +178,53 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showImage(imageResponse: Helpers.ImageResponse) {
-        CoroutineScope(Dispatchers.IO).launch {
-            //get the window size
-            val decorView = window.decorView
-            val width = decorView.width
-            val height = decorView.height
-            val maxSize = maxOf(width, height)
+        showImageJob?.cancel()
+        showImageJob = lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                //get the window size
+                val decorView = window.decorView
+                val width = decorView.width
+                val height = decorView.height
+                val maxSize = maxOf(width, height)
 
-            var randomBitmap = Helpers.decodeBitmapFromBytes(imageResponse.randomImageBase64)
-            val thumbHashBitmap = Helpers.decodeBitmapFromBytes(imageResponse.thumbHashImageBase64)
-            var isMerged = false
+                var randomBitmap = Helpers.decodeBitmapFromBytes(imageResponse.randomImageBase64)
+                val thumbHashBitmap = Helpers.decodeBitmapFromBytes(imageResponse.thumbHashImageBase64)
+                var isMerged = false
 
-            val isPortrait = randomBitmap.height > randomBitmap.width
-            if (isPortrait && serverSettings.layout == "splitview") {
-                if (portraitCache != null) {
-                    var decodedPortraitImageBitmap =
-                        Helpers.decodeBitmapFromBytes(portraitCache!!.randomImageBase64)
-                    decodedPortraitImageBitmap =
-                        Helpers.reduceBitmapQuality(decodedPortraitImageBitmap, maxSize)
-                    randomBitmap = Helpers.reduceBitmapQuality(randomBitmap, maxSize)
+                val isPortrait = randomBitmap.height > randomBitmap.width
+                if (isPortrait && serverSettings.layout == "splitview") {
+                    if (portraitCache != null) {
+                        var decodedPortraitImageBitmap =
+                            Helpers.decodeBitmapFromBytes(portraitCache!!.randomImageBase64)
+                        decodedPortraitImageBitmap =
+                            Helpers.reduceBitmapQuality(decodedPortraitImageBitmap, maxSize)
+                        randomBitmap = Helpers.reduceBitmapQuality(randomBitmap, maxSize)
 
-                    val colorString =
-                        serverSettings.primaryColor?.takeIf { it.isNotBlank() } ?: "#FFFFFF"
-                    val parsedColor = colorString.toColorInt()
+                        val colorString =
+                            serverSettings.primaryColor?.takeIf { it.isNotBlank() } ?: "#FFFFFF"
+                        val parsedColor = colorString.toColorInt()
 
-                    randomBitmap =
-                        Helpers.mergeImages(decodedPortraitImageBitmap, randomBitmap, parsedColor)
-                    isMerged = true
+                        randomBitmap =
+                            Helpers.mergeImages(decodedPortraitImageBitmap, randomBitmap, parsedColor)
+                        isMerged = true
 
-                    decodedPortraitImageBitmap.recycle()
+                        decodedPortraitImageBitmap.recycle()
+                    } else {
+                        portraitCache = imageResponse
+                        getNextImage()
+                        return@launch
+                    }
                 } else {
-                    portraitCache = imageResponse
-                    getNextImage()
-                    return@launch
+                    randomBitmap = Helpers.reduceBitmapQuality(randomBitmap, maxSize * 2)
                 }
-            } else {
-                randomBitmap = Helpers.reduceBitmapQuality(randomBitmap, maxSize * 2)
-            }
 
-            withContext(Dispatchers.Main) {
-                updateUI(randomBitmap, thumbHashBitmap, isMerged, imageResponse)
+                withContext(Dispatchers.Main) {
+                    updateUI(randomBitmap, thumbHashBitmap, isMerged, imageResponse)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("ImmichFrame", "Failed to decode/display image", e)
             }
         }
     }
