@@ -8,6 +8,7 @@ class RpcHttpServer(
     private val onPreviousCommand: () -> Unit,
     private val onPauseCommand: () -> Unit,
     private val onSettingsCommand: () -> Unit,
+    private val onCloseSettingsCommand: () -> Unit,
     private val onBrightnessCommand: (Float) -> Unit,
 ) : NanoHTTPD(53287) {
 
@@ -36,6 +37,10 @@ class RpcHttpServer(
             "/settings" -> {
                 onSettingsCommand()
                 newFixedLengthResponse("Settings")
+            }
+            "/close-settings" -> {
+                onCloseSettingsCommand()
+                newFixedLengthResponse("Settings closed")
             }
             "/brightness" -> {
                 val brightness = session.parameters["value"]?.firstOrNull()?.toFloatOrNull()

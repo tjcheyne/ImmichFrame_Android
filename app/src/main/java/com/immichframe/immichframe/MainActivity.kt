@@ -162,6 +162,7 @@ class MainActivity : AppCompatActivity() {
             onPreviousCommand = { runOnUiThread { previousAction() } },
             onPauseCommand = { runOnUiThread { pauseAction() } },
             onSettingsCommand = { runOnUiThread { settingsAction() } },
+            onCloseSettingsCommand = { runOnUiThread { closeSettingsAction() } },
             onBrightnessCommand = { brightness -> runOnUiThread { screenBrightnessAction(brightness) } },
         )
         rcpServer.start()
@@ -705,6 +706,13 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(this, SettingsActivity::class.java)
         stopImageTimer()
         settingsLauncher.launch(intent)
+    }
+
+    private fun closeSettingsAction() {
+        SettingsActivity.instance?.apply {
+            setResult(RESULT_OK)
+            finish()
+        }
     }
 
     private fun screenBrightnessAction(brightness: Float) {
