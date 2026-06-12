@@ -169,7 +169,11 @@ object Helpers {
     fun createRetrofit(baseUrl: String, authSecret: String): Retrofit {
         val normalizedBaseUrl = if (!baseUrl.endsWith("/")) "$baseUrl/" else baseUrl
 
-        val client = OkHttpClient.Builder().addInterceptor { chain ->
+        val client = OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(60, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
                 val originalRequest = chain.request()
 
                 val request = if (authSecret.isNotEmpty()) {
