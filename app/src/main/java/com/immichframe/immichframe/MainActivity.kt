@@ -74,6 +74,7 @@ class MainActivity : AppCompatActivity() {
     private var previousImage: Helpers.ImageResponse? = null
     private var currentImage: Helpers.ImageResponse? = null
     private var portraitCache: Helpers.ImageResponse? = null
+    private var currentImageCall: Call<Helpers.ImageResponse>? = null
     private val imageRunnable = object : Runnable {
         override fun run() {
             if (isImageTimerRunning) {
@@ -191,12 +192,15 @@ class MainActivity : AppCompatActivity() {
                 var randomBitmap = Helpers.decodeBitmapFromBytes(imageResponse.randomImageBase64)
                 val thumbHashBitmap = Helpers.decodeBitmapFromBytes(imageResponse.thumbHashImageBase64)
                 var isMerged = false
+                var cachedPortrait: Helpers.ImageResponse? = null
 
                 val isPortrait = randomBitmap.height > randomBitmap.width
                 if (isPortrait && serverSettings.layout == "splitview") {
-                    if (portraitCache != null) {
+                    cachedPortrait = portraitCache
+                    if (cachedPortrait != null) {
+                        portraitCache = null
                         var decodedPortraitImageBitmap =
-                            Helpers.decodeBitmapFromBytes(portraitCache!!.randomImageBase64)
+                            Helpers.decodeBitmapFromBytes(cachedPortrait.randomImageBase64)
                         decodedPortraitImageBitmap =
                             Helpers.reduceBitmapQuality(decodedPortraitImageBitmap, maxSize)
                         randomBitmap = Helpers.reduceBitmapQuality(randomBitmap, maxSize)
@@ -220,7 +224,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 withContext(Dispatchers.Main) {
-                    updateUI(randomBitmap, thumbHashBitmap, isMerged, imageResponse)
+                    updateUI(randomBitmap, thumbHashBitmap, isMerged, imageResponse, cachedPortrait)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -234,7 +238,8 @@ class MainActivity : AppCompatActivity() {
         finalImage: Bitmap,
         thumbHashBitmap: Bitmap,
         isMerged: Boolean,
-        imageResponse: Helpers.ImageResponse
+        imageResponse: Helpers.ImageResponse,
+        cachedImageResponse: Helpers.ImageResponse? = null
     ) {
         val imageViewOld = if (isShowingFirst) imageView1 else imageView2
         val imageViewNew = if (isShowingFirst) imageView2 else imageView1
@@ -273,23 +278,22 @@ class MainActivity : AppCompatActivity() {
         // Toggle active ImageView
         isShowingFirst = !isShowingFirst
 
-        if (isMerged) {
+        if (isMerged && cachedImageResponse != null) {
             val mergedPhotoDate =
-                if (portraitCache!!.photoDate.isNotEmpty() || imageResponse.photoDate.isNotEmpty()) {
-                    "${portraitCache!!.photoDate} | ${imageResponse.photoDate}"
+                if (cachedImageResponse.photoDate.isNotEmpty() || imageResponse.photoDate.isNotEmpty()) {
+                    "${cachedImageResponse.photoDate} | ${imageResponse.photoDate}"
                 } else {
                     ""
                 }
 
             val mergedImageLocation =
-                if (portraitCache!!.imageLocation.isNotEmpty() || imageResponse.imageLocation.isNotEmpty()) {
-                    "${portraitCache!!.imageLocation} | ${imageResponse.imageLocation}"
+                if (cachedImageResponse.imageLocation.isNotEmpty() || imageResponse.imageLocation.isNotEmpty()) {
+                    "${cachedImageResponse.imageLocation} | ${imageResponse.imageLocation}"
                 } else {
                     ""
                 }
 
             updatePhotoInfo(mergedPhotoDate, mergedImageLocation)
-            portraitCache = null
         } else {
             updatePhotoInfo(imageResponse.photoDate, imageResponse.imageLocation)
         }
@@ -351,7 +355,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getNextImage() {
-        apiService.getImageData().enqueue(object : Callback<Helpers.ImageResponse> {
+        currentImageCall?.cancel()
+        val call = apiService.getImageData()
+        currentImageCall = call
+        call.enqueue(object : Callback<Helpers.ImageResponse> {
             override fun onResponse(
                 call: Call<Helpers.ImageResponse>,
                 response: Response<Helpers.ImageResponse>
@@ -373,6 +380,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onFailure(call: Call<Helpers.ImageResponse>, t: Throwable) {
+                if (call.isCanceled) return
                 t.printStackTrace()
                 Toast.makeText(
                     this@MainActivity,
@@ -604,9 +612,10 @@ class MainActivity : AppCompatActivity() {
                 onFailure = { error ->
                     Toast.makeText(
                         this,
-                        "Failed to load server settings: ${error.localizedMessage}",
+                        "Failed to load server settings: ${error.localizedMessage}. Retrying...",
                         Toast.LENGTH_SHORT
                     ).show()
+                    Handler(Looper.getMainLooper()).postDelayed({ loadSettings() }, 30000)
                 }
             )
         }
