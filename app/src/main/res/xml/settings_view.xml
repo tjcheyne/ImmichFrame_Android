@@ -14,7 +14,7 @@
 
     <PreferenceCategory android:title="Display Options">
         <SwitchPreferenceCompat
-            android:defaultValue="true"
+            android:defaultValue="false"
             android:key="useWebView"
             android:title="Use WebView?" />
         <SwitchPreferenceCompat
@@ -22,7 +22,7 @@
             android:key="blurredBackground"
             android:title="Blurred Background?" />
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="true"
             android:key="showCurrentDate"
             android:title="Show Current Date?" />
         <SwitchPreferenceCompat
@@ -33,11 +33,11 @@
 
     <PreferenceCategory android:title="Screen Dimming">
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="true"
             android:key="screenDim"
             android:title="Set Screen Dim Hours?" />
         <EditTextPreference
-            android:defaultValue=""
+            android:defaultValue="23:00-08:00"
             android:dependency="screenDim"
             android:key="dim_time_range"
             android:summary="e.g., 22:00-07:00"
@@ -57,6 +57,11 @@
             android:selectable="false"
             android:summary="⬆️ Open Settings\n🆗 Play/Pause\n⬅️ Previous Image\n➡️ Next Image\n👇 Open Settings (swipe)" />
     </PreferenceCategory>
+
+    <Preference
+        android:key="app_version"
+        android:selectable="false"
+        android:title="App Version" />
 
     <Preference
         android:icon="@android:drawable/ic_menu_close_clear_cancel"

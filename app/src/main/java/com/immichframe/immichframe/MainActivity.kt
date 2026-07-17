@@ -450,10 +450,12 @@ class MainActivity : AppCompatActivity() {
     private fun getServerSettings(
         onSuccess: (Helpers.ServerSettings) -> Unit,
         onFailure: (Throwable) -> Unit,
-        maxRetries: Int = 36,
-        retryDelayMillis: Long = 5000
+        initialDelayMillis: Long = 5000,
+        maxDelayMillis: Long = 60000,
+        slowDownAfterMillis: Long = 600000
     ) {
         var retryCount = 0
+        var totalDelayMillis = 0L
 
         fun attemptFetch() {
             if (useWebView) {
@@ -484,19 +486,17 @@ class MainActivity : AppCompatActivity() {
                     if (useWebView) {
                         return
                     }
-                    if (retryCount < maxRetries) {
-                        retryCount++
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Retrying to fetch server settings... Attempt $retryCount of $maxRetries",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            attemptFetch()
-                        }, retryDelayMillis)
-                    } else {
-                        onFailure(t)
-                    }
+                    retryCount++
+                    val delayMillis = if (totalDelayMillis < slowDownAfterMillis) initialDelayMillis else maxDelayMillis
+                    totalDelayMillis += delayMillis
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Retrying to fetch server settings... Attempt $retryCount",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        attemptFetch()
+                    }, delayMillis)
                 }
             })
         }
@@ -878,7 +878,10 @@ class MainActivity : AppCompatActivity() {
     private fun loadWebViewWithRetry(
         url: String,
         attempt: Int = 1,
-        maxAttempts: Int = 36
+        initialDelayMillis: Long = 5000,
+        maxDelayMillis: Long = 60000,
+        slowDownAfterMillis: Long = 600000,
+        totalDelayMillis: Long = 0
     ) {
         lifecycleScope.launch {
             val reachable = withContext(Dispatchers.IO) {
@@ -887,23 +890,16 @@ class MainActivity : AppCompatActivity() {
 
             if (reachable) {
                 webView.loadUrl(url)
-            } else if (attempt <= maxAttempts) {
+            } else {
+                val delayMillis = if (totalDelayMillis < slowDownAfterMillis) initialDelayMillis else maxDelayMillis
                 Toast.makeText(
                     this@MainActivity,
-                    "Connecting to server... Attempt $attempt of $maxAttempts",
+                    "Connecting to server... Attempt $attempt",
                     Toast.LENGTH_SHORT
                 ).show()
 
-                delay(5_000)
-                loadWebViewWithRetry(url, attempt + 1, maxAttempts)
-            } else {
-                Toast.makeText(
-                    this@MainActivity,
-                    "Could not connect to server after $maxAttempts attempts",
-                    Toast.LENGTH_LONG
-                ).show()
-
-                webView.loadUrl(url)
+                delay(delayMillis)
+                loadWebViewWithRetry(url, attempt + 1, initialDelayMillis, maxDelayMillis, slowDownAfterMillis, totalDelayMillis + delayMillis)
             }
         }
     }

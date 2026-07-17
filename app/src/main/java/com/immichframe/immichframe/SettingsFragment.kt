@@ -2,6 +2,7 @@ package com.immichframe.immichframe
 
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -19,6 +20,16 @@ import androidx.preference.SwitchPreferenceCompat
 class SettingsFragment : PreferenceFragmentCompat() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.settings_view, rootKey)
+
+        // Set app version
+        val versionPref = findPreference<Preference>("app_version")
+        try {
+            val versionName = requireContext().packageManager.getPackageInfo(requireContext().packageName, 0).versionName
+            versionPref?.summary = versionName
+        } catch (e: PackageManager.NameNotFoundException) {
+            versionPref?.summary = "Unknown"
+        }
+
         val chkUseWebView = findPreference<SwitchPreferenceCompat>("useWebView")
         val chkBlurredBackground = findPreference<SwitchPreferenceCompat>("blurredBackground")
         val chkShowCurrentDate = findPreference<SwitchPreferenceCompat>("showCurrentDate")
