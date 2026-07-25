@@ -2,12 +2,12 @@
 
     <PreferenceCategory android:title="Connection Settings">
         <EditTextPreference
-            android:defaultValue=""
+            android:defaultValue="@string/default_webview_url"
             android:inputType="textUri"
             android:key="webview_url"
             android:title="ImmichFrame Server URL" />
         <EditTextPreference
-            android:defaultValue=""
+            android:defaultValue="@string/default_auth_secret"
             android:key="authSecret"
             android:title="Authorization Secret" />
     </PreferenceCategory>

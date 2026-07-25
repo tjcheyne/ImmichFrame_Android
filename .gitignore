@@ -26,6 +26,9 @@ render.experimental.xml
 *.jks
 *.keystore
 
+# Secret default values (injected at build time)
+secrets.properties
+
 # Google Services (e.g. APIs or Firebase)
 google-services.json
 
@@ -33,3 +36,5 @@ google-services.json
 *.hprof
 
 signing.properties
+
+prompt.txt

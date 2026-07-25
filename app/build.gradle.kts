@@ -33,6 +33,23 @@ android {
         targetSdk = 36
         versionCode = 50
         versionName = "1.0.50.0"
+
+        // Load secret default values from a gitignored secrets.properties file
+        // (local development) or from environment variables (CI / GitHub Actions).
+        // Environment variables take precedence over the properties file.
+        val secretsProps = Properties().apply {
+            val secretsFile = rootProject.file("secrets.properties")
+            if (secretsFile.exists()) {
+                load(FileInputStream(secretsFile))
+            }
+        }
+        fun secret(key: String): String =
+            System.getenv(key) ?: secretsProps.getProperty(key) ?: ""
+
+        // Generated at build time into a string resource so it can be referenced
+        // from settings_view.xml via android:defaultValue="@string/...".
+        resValue("string", "default_webview_url", secret("DEFAULT_WEBVIEW_URL"))
+        resValue("string", "default_auth_secret", secret("DEFAULT_AUTH_SECRET"))
     }
 
     buildTypes {
